@@ -33,7 +33,9 @@ class HBaseTest(object):
         self.client = Hbase.Client(self.protocol)
         self.transport.open()
 
-        self.set_column_families([str, str, int])
+
+        # set type and field of column families
+        self.set_column_families([str, str, int], ['name', 'sex', 'age'])
         self._build_column_families()
 
     def set_column_families(self, type_list, col_list=['name', 'sex', 'age']):
@@ -48,6 +50,8 @@ class HBaseTest(object):
             self.__create_table(self.table)
 
     def __create_table(self, table):
+        """ create table in hbase with column families
+        """
         columnFamilies = []
         for columnFamily in self.columnFamilies:
             name = Hbase.ColumnDescriptor(name=columnFamily)
@@ -58,6 +62,8 @@ class HBaseTest(object):
         self.transport.close()
 
     def __del_table(self, table):
+        """ Delete a table, first need to disable it.
+        """
         self.client.disableTable(table)
         self.client.deleteTable(table)
 
@@ -69,6 +75,11 @@ class HBaseTest(object):
 
         :param *args: all values correspond to column families.
             e.g. [name, sex, age]
+
+        Usage::
+
+        >>> HBaseTest().put('test', '0', 'john', 'male', '95')
+
         """
         mutations = []
         for j, column in enumerate(args):
@@ -80,11 +91,16 @@ class HBaseTest(object):
         self.client.mutateRow(self.table, rowKey, mutations, {})
 
     def puts(self, rowKeys, values, qualifier='1'):
-        """ put sevel rows
+        """ put sevel rows, `qualifier` is autoincrement
 
         :param rowKeys: a single rowKey
         :param values: values is a 2-dimension list, one piece element is [name, sex, age]
         :param qualifier: column family qualifier
+
+        Usage::
+
+        >>> HBaseTest().puts('test', [['lee', 'f', '27'], ['clark', 'm', 27], ['dan', 'f', '27']])
+
         """
         mutationsBatch = []
         if not isinstance(rowKeys, list):
@@ -105,6 +121,10 @@ class HBaseTest(object):
 
 
     def getRow(self, row, qualifier='0'):
+        """ get one row from hbase table
+
+        :param row: row key
+        """
         rows = self.client.getRow(self.table, row, {})
         ret = []
         for r in rows:
@@ -118,6 +138,10 @@ class HBaseTest(object):
         return ret
 
     def getRows(self, rows, qualifier='0'):
+        """ get rows from hbase table, all the row specify the same `qualifier`
+
+        :param rows: a list of row key
+        """
         grow = True if len(set(rows)) == 1 else False
 
         for r in rows:
@@ -125,8 +149,14 @@ class HBaseTest(object):
             if grow: qualifier = str( int(qualifier) + 1 )
 
 
-    def scanner(self, numRows=100):
-        scan = Hbase.TScan()
+    def scanner(self, numRows=100, startRow=None, stopRow=None):
+        """ scan the table
+
+        :param numRows: how much rows return in one iteration.
+        :param startRow: start scan row key
+        :param stopRow: stop scan row key
+        """
+        scan = Hbase.TScan(startRow, stopRow)
         scannerId = self.client.scannerOpenWithScan(self.table, scan, {})
 #        row = self.client.scannerGet(scannerId)
 
